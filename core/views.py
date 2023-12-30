@@ -1,6 +1,4 @@
-from django.shortcuts import render
 
-# Create your views here.
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,12 +6,10 @@ from rest_framework import status
 from .models import CustomUser
 from .serializers import UserSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework import viewsets
 from .models import Blog
 from .serializers import BlogSerializer
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken, BlacklistedToken,OutstandingToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.admin import OutstandingTokenAdmin
 
 class UserCreateView(generics.CreateAPIView):
@@ -25,64 +21,55 @@ class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
 
 
-class BlogViewSet(viewsets.ModelViewSet):
+class BlogListCreateAPIView(APIView):
     queryset = Blog.objects.all()
     serializer_class = BlogSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-
-class BlogListCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        blogs = Blog.objects.filter(user=request.user)
-        serializer = BlogSerializer(blogs, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = BlogSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class BlogDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self, pk):
         try:
-            return Blog.objects.get(pk=pk, user=self.request.user)
-        except Blog.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        blog = self.get_object(pk)
-        if blog:
-            serializer = BlogSerializer(blog)
+            blogs = Blog.objects.filter(user=request.user)
+            serializer = BlogSerializer(blogs, many=True)
             return Response(serializer.data)
-        return Response({"detail": "Blog not found or you don't have permission to access"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, pk):
-        blog = self.get_object(pk)
-        if blog:
-            serializer = BlogSerializer(blog, data=request.data)
+    def post(self, request, *args, **kwargs):
+        try:
+            request.data['user']= request.user.id
+            serializer = BlogSerializer(data=request.data)
             if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
+                serializer.save(user=request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": "Blog not found or you don't have permission to update"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
+
+
+    def patch(self, request,pk):
+        try:
+            blog = Blog.objects.filter(id=int(pk)).first()
+            if blog.user != self.request.user:
+                return Response({"detail": "You don't have permission to update this blog"}, status=status.HTTP_403_FORBIDDEN)
+            serializer = BlogSerializer(blog, data=request.data, partial=True)
+            if serializer.is_valid(raise_exception=True):
+
+                serializer.save(user=request.user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
+    
 
     def delete(self, request, pk):
-        blog = self.get_object(pk)
-        if blog:
+        try:
+            blog = Blog.objects.filter(id=int(pk)).first()
+            if blog.user != self.request.user:
+                return Response({"detail": "You don't have permission to update this blog"}, status=status.HTTP_403_FORBIDDEN)
             blog.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response({"detail": "Blog not found or you don't have permission to delete"}, status=status.HTTP_404_NOT_FOUND)
-
-
+            return Response({"detail": "Object got successfully deleted"},status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
 class ObtainTokenPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
@@ -94,7 +81,6 @@ class ObtainTokenPairView(TokenObtainPairView):
 
 class TokenRefreshView(TokenRefreshView):
     pass
-
 class CustomOutstandingTokenAdmin(OutstandingTokenAdmin):
     def has_delete_permission(self, *args, **kwargs):
         return True
@@ -106,9 +92,6 @@ class UserTokenRevokeView(APIView):
 
     def post(self, request, *args, **kwargs):
         refresh_token = request.data.get('refresh')
-        token = RefreshToken(refresh_token)
-        print("refresh_token  " + refresh_token)
-
         if refresh_token:
             try:
                 token = RefreshToken(refresh_token)
