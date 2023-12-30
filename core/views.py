@@ -5,12 +5,11 @@ from rest_framework.views import APIView
 from rest_framework import status
 from .models import CustomUser
 from .serializers import UserSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .models import Blog
 from .serializers import BlogSerializer
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.token_blacklist.admin import OutstandingTokenAdmin
+
+
 
 class UserCreateView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
@@ -71,34 +70,102 @@ class BlogListCreateAPIView(APIView):
         except Exception as e:
             return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
-class ObtainTokenPairView(TokenObtainPairView):
-    def post(self, request, *args, **kwargs):
-        print("Received credentials:", request.data.get('username'), request.data.get('password'))
-        response = super().post(request, *args, **kwargs)
-        if response.status_code != status.HTTP_200_OK:
-            print("Login failed. Response:", response.data)
-        return response
 
-class TokenRefreshView(TokenRefreshView):
-    pass
-class CustomOutstandingTokenAdmin(OutstandingTokenAdmin):
-    def has_delete_permission(self, *args, **kwargs):
-        return True
+# yourapp/views.py
+
+from django.contrib.auth import authenticate
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
+from .jwt_auth import create_tokens, refresh_access_token
+
+@api_view(['POST'])
+def login_view(request):
+    # Get username and password from the request data (you may use serializers for a more structured approach)
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    # Authenticate user
+    # user = authenticate(username=username, password=password)
+
+
+    # Create tokens if the user is authenticated
+    tokens = create_tokens(username, password)
+
+    if tokens:
+        return Response(tokens, status=200)
+    else:
+        return Response({'error': 'Failed to create tokens'}, status=500)
+
+
+@api_view(['POST'])
+def generate_access_token_view(request):
+    # Get username and password from the request data (you may use serializers for a more structured approach)
+    refresh_token = request.data.get('refresh')
+    print("refresh_token    " +refresh_token+"\n\n")
+    if refresh_token:
+        # Create tokens if the user is authenticated
+        tokens = refresh_access_token(refresh_token)
+
+        if tokens:
+            return Response(tokens, status=200)
+        else:
+            return Response({'error': 'Failed to create access token'}, status=500)
+    else:
+        return Response({'error': 'Invalid refresh token'}, status=401)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class ObtainTokenPairView(TokenObtainPairView):
+#     def post(self, request, *args, **kwargs):
+#         print("Received credentials:", request.data.get('username'), request.data.get('password'))
+#         response = super().post(request, *args, **kwargs)
+#         if response.status_code != status.HTTP_200_OK:
+#             print("Login failed. Response:", response.data)
+#         return response
+
+# class TokenRefreshView(TokenRefreshView):
+#     pass
+# class CustomOutstandingTokenAdmin(OutstandingTokenAdmin):
+#     def has_delete_permission(self, *args, **kwargs):
+#         return True
     
 
 
-class UserTokenRevokeView(APIView):
-    permission_classes = [IsAuthenticated]
+# class UserTokenRevokeView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
-        refresh_token = request.data.get('refresh')
-        if refresh_token:
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-                return Response({'detail': 'Tokens revoked successfully.'}, status=status.HTTP_200_OK)
+#     def post(self, request, *args, **kwargs):
+#         refresh_token = request.data.get('refresh')
+#         if refresh_token:
+#             try:
+#                 token = RefreshToken(refresh_token)
+#                 token.blacklist()
+#                 return Response({'detail': 'Tokens revoked successfully.'}, status=status.HTTP_200_OK)
         
-            except Exception as e:
-                return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'detail': 'Refresh token is required in the request body.'}, status=status.HTTP_400_BAD_REQUEST)
+#             except Exception as e:
+#                 return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_400_BAD_REQUEST)
+#         else:
+#             return Response({'detail': 'Refresh token is required in the request body.'}, status=status.HTTP_400_BAD_REQUEST)
