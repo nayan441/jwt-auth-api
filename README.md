@@ -46,6 +46,8 @@ Request Payload:
 ## JWT Authentication Middleware
 The project includes a custom JWT authentication middleware. JWTs can be obtained by registering and logging in. Use the token for subsequent API requests.
 
+Login:
+
 Endpoint: /api/token/
 
 Method: POST
@@ -54,11 +56,25 @@ Request Payload:
 
     { "username": "nayan",    "password": "12345"}
 
+Logout:
+
+Endpoint: /api/revoke/
+
+Method: POST
+
+Request Payload:
+
+    { "refresh": "<your-refresh-token>"}
+
 
 ## CRUD Operation APIs
 Blog Post API
 
- List all blog posts:
+All request have header which we obtain from login api:
+
+    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzAzOTQyNjI2LCJpYXQiOjE3MDM5NDIwMjYsImp0aSI6ImQwMjkzMzdmMzQwYTQ4Y2U4NzcyOTc0YjIwOGQyOTc2IiwidXNlcl9pZCI6MX0.4CfXBEbMc7DBBi2gy-hF5wxzLO78xLmiqwBGv3heWXA'
+
+List all blog posts:
 
 Endpoint: /api/blogs/
 
@@ -78,7 +94,7 @@ Request Payload:
 
     {
         "title": "n",
-        "description": "def put  self"
+        "description": "def put(self,"
     }
 
 Update a blog post:
