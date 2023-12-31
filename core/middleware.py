@@ -1,23 +1,55 @@
 # middleware.py
 
-from rest_framework_jwt.authentication import BaseJSONWebTokenAuthentication
+
 from .jwt_auth import refresh_access_token, blacklist_refresh_token
+import json
+import jwt
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import HttpResponse
+from django.utils.deprecation import MiddlewareMixin
+from .models import CustomUser
 
-class CustomJWTAuthentication(BaseJSONWebTokenAuthentication):
-    def authenticate_credentials(self, payload):
-        # Override the default behavior to handle token refresh
-        user, _ = super().authenticate_credentials(payload)
+from taskauthlogin.settings import SECRET_KEY
+from django.http import JsonResponse
+from rest_framework.authtoken.models import Token
+from datetime import datetime, timedelta
 
-        # Check if the token is a refresh token
-        if payload.get('token_type') == 'refresh':
-            # Check if the refresh token is blacklisted
-            if self.is_refresh_token_blacklisted(payload['jti']):
-                return None
+class TokenAuthMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-        return user
+    def __call__(self, request):
+        if request.path in [r"/api/register/", r"/api/token/", r"/api/revoke/"] :
+            response = self.get_response(request)
+            return response
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization'].split()
 
-    def is_refresh_token_blacklisted(self, jti):
-        # Implement logic to check if the refresh token is blacklisted
-        # This can be done by querying a database table, cache, or any other storage mechanism
-        # Return True if the token is blacklisted, otherwise False
-        return False
+            if len(auth_header) == 2:
+                # Extract the token from the Authorization header
+                token_key = auth_header[1]
+                print(token_key)
+                # try:
+                payload = jwt.decode(token_key, SECRET_KEY, algorithms=['HS256'])
+                print(dir(payload))
+                print(payload)
+                # Check token expiration
+                userid = payload['user_id']
+                expire = payload['exp']
+                
+                if (expire > datetime.now())==False:
+                    return JsonResponse({'error': 'Token has expired'}, status=401)
+
+                # Attach the user to the request
+                user = CustomUser.objects.filter(id=userid)
+                request.user = user
+                response = self.get_response(request)
+                return response
+                # except Exception as e:
+                #     return JsonResponse({'error': str(e)}, status=401)
+            else:
+                return JsonResponse({'error': 'Provide Valid Cred'}, status=401)
+        else:
+            return JsonResponse({'error': 'Auth token not provided'}, status=401)
+       

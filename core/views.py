@@ -77,7 +77,7 @@ from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.contrib.auth import authenticate
-from .jwt_auth import create_tokens, refresh_access_token
+from .jwt_auth import create_tokens, refresh_access_token, blacklist_refresh_token
 
 @api_view(['POST'])
 def login_view(request):
@@ -111,6 +111,22 @@ def generate_access_token_view(request):
             return Response(tokens, status=200)
         else:
             return Response({'error': 'Failed to create access token'}, status=500)
+    else:
+        return Response({'error': 'Invalid refresh token'}, status=401)
+    
+@api_view(['POST'])
+def revoke_refresh_token_view(request):
+    # Get username and password from the request data (you may use serializers for a more structured approach)
+    refresh_token = request.data.get('refresh')
+    print("refresh_token    " +refresh_token+"\n\n")
+    if refresh_token:
+        # Create tokens if the user is authenticated
+        tokens = blacklist_refresh_token(refresh_token)
+
+        if tokens:
+            return Response(tokens, status=200)
+        else:
+            return Response({'error': 'Failed to revoke token'}, status=500)
     else:
         return Response({'error': 'Invalid refresh token'}, status=401)
 
