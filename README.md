@@ -13,21 +13,28 @@ This project is a Django-based REST API that provides registration, JWT authenti
 2. Create virtual environment and activate:
 
    ```bash
+
    virtualenv venv
    source venv/bin/activate (for Ubuntu)
    or
    .\venv\Script\activate  (for Windows)
 
 3. Install required packages:
+    ```
+    git checkout simple_jwt_auth
+
+  
+4. Install required packages:
 
    ```bash
    pip install -r requirements.txt
-   python manage.py makemigrations
-   python manage.py migrate
 
-4. Run script:
+5. Run script:
 
    ```bash
+   python manage.py makemigrations
+   python manage.py migrate
+   
    python3 manage.py runserver 8000
 
 The API will be accessible at http://127.0.0.1:8000/.
