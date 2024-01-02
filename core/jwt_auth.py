@@ -10,6 +10,8 @@ from .models import OutstandingRefreshToken, BlacklistedRefreshToken
 
 jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
 jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
+jwt_decode_handler = api_settings.JWT_DECODE_HANDLER
+secrete_key = api_settings.JWT_SECRET_KEY
 
 def create_tokens(username, password):
     custom_auth_backend = CustomAuthBackend()
@@ -17,17 +19,22 @@ def create_tokens(username, password):
     print(user)
     if user:
 
-        payload = jwt_payload_handler(user)
-
+        payload = jwt_payload_handler(user)   
         access_token_exp = datetime.utcnow() + api_settings.JWT_EXPIRATION_DELTA
-        refresh_token_exp = datetime.utcnow() + api_settings.JWT_REFRESH_EXPIRATION_DELTA
-        payload['exp'] = str(access_token_exp)
-        payload['orig_iat'] = str(datetime.utcnow())
+        payload['exp'] = (datetime.timestamp(access_token_exp))
+        payload['orig_iat'] = int(datetime.timestamp(datetime.utcnow()))
+        payload['token_type'] = 'access'
+        print("= = = "*20)
+        print(datetime.utcnow())
+        print(access_token_exp)
+        print(payload['exp'])
+        print(datetime.fromtimestamp(payload['exp']))
 
         access_token = jwt_encode_handler(payload)
 
         # Create refresh token
-        payload['exp'] = refresh_token_exp
+        refresh_token_exp = datetime.utcnow() + api_settings.JWT_REFRESH_EXPIRATION_DELTA
+        payload['exp'] = int(datetime.timestamp(refresh_token_exp))
         payload['token_type'] = 'refresh'
         refresh_token = jwt_encode_handler(payload)
        
@@ -54,7 +61,9 @@ def refresh_access_token(refresh_token):
                 if payload.get('token_type') == 'refresh':
                     # Set expiration time for the new access token
                     payload['exp'] = datetime.utcnow() + api_settings.JWT_EXPIRATION_DELTA
-                    return {'access_token': jwt_encode_handler(payload)}
+                    payload['token_type'] = 'access'
+                    access_token = jwt_encode_handler(payload)
+                    return {'access_token': access_token}
             return  {'detail': "Blacklisted"}
 
     except jwt.ExpiredSignatureError:
