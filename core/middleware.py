@@ -62,61 +62,51 @@ class TokenAuthMiddleware:
     #         return JsonResponse({'error': 'Auth token not provided'}, status=401)
        
     def __call__(self, request):
-        try:
-            # Check specific paths and bypass authentication
-            print()
-            if request.path in [r"/api/register/", r"/api/token/",r"/api/token/refresh/", r"/api/all/", r"/admin/"]:
-                print("=================================================Middleware skipped============================================")
-                response = self.get_response(request)
-                return response
+        # try:
+            exempted_urls = ['/admin/', "/api/register/", "/api/token/", "/api/token/refresh/", "/api/all/",]
+            if any(request.path.startswith(url) for url in exempted_urls):
+                print(request.path)
+                return self.get_response(request)
 
             if 'Authorization' in request.headers:
                 print("==inside middleware=="*5)
                 auth_header = request.headers['Authorization'].split()
 
                 if len(auth_header) == 2:
-                    # Extract the token from the Authorization header
+                    token_key = auth_header[1]
+                    print("\n\n\n")
+                    # print(jwt.decode(token_key, settings.SECRET_KEY, algorithms=['HS256']))
 
-                    # try:
-                        token_key = auth_header[1]
-                        # Decode the token and extract payload
-                        # payload = jwt.decode(token_key, settings.SECRET_KEY, algorithms=['HS256'])
-                        # print(payload)
-                        # print(payload)
-                        # print(payload)
+                    print("\n\n\n")
+                    try:
                         payload = jwt.decode(token_key, None, False)
                         userid = payload['user_id']
                         expire = payload['exp']
 
                         if payload['token_type'] == "access":
                             # Check token expiration
-                            print(expire)
-                            print(datetime.utcfromtimestamp(expire))
-                            print(datetime.utcnow())
                             if datetime.fromtimestamp(expire) < datetime.utcnow():
                                 return JsonResponse({'error': 'Token has expired'}, status=401)
 
                             # Attach the user to the request
                             user = CustomUser.objects.filter(id=userid).first()
-                            print(user)
                             if user is not None:
                                 request.user = user
                                 request.user_id = user.id
                             else:
                                 return JsonResponse({'error': 'User not found'}, status=401)
-                            print(dir(request))
                             response = self.get_response(request)
                             return response
                         else:
                             return JsonResponse({'error': 'Provide a valid access token'}, status=401)
-                    # except jwt.ExpiredSignatureError:
-                    #     return JsonResponse({'error': 'Token has expired3'}, status=401)
-                    # except jwt.InvalidTokenError:
-                    #     return JsonResponse({'error': 'Invalid token'}, status=401)
+                    except jwt.ExpiredSignatureError:
+                        return JsonResponse({'error': 'Token has expired'}, status=401)
+                    except jwt.InvalidTokenError:
+                        return JsonResponse({'error': 'Invalid token'}, status=401)
                 else:
                     return JsonResponse({'error': 'Provide valid credentials'}, status=401)
             else:
                 return JsonResponse({'error': 'Auth token not provided'}, status=401)
-        except Exception as e:
-            # Handle unexpected exceptions
-            return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+        # except Exception as e:
+        #     # Handle unexpected exceptions
+        #     return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)

@@ -20,7 +20,7 @@ def create_tokens(username, password):
     if user:
 
         payload = jwt_payload_handler(user)   
-        access_token_exp = datetime.utcnow() + api_settings.JWT_EXPIRATION_DELTA
+        access_token_exp = datetime.utcnow() + timedelta(minutes=5)
         payload['exp'] = (datetime.timestamp(access_token_exp))
         payload['orig_iat'] = int(datetime.timestamp(datetime.utcnow()))
         payload['token_type'] = 'access'
@@ -33,7 +33,7 @@ def create_tokens(username, password):
         access_token = jwt_encode_handler(payload)
 
         # Create refresh token
-        refresh_token_exp = datetime.utcnow() + api_settings.JWT_REFRESH_EXPIRATION_DELTA
+        refresh_token_exp = datetime.utcnow() + timedelta(hours=24)
         payload['exp'] = int(datetime.timestamp(refresh_token_exp))
         payload['token_type'] = 'refresh'
         refresh_token = jwt_encode_handler(payload)
@@ -47,12 +47,7 @@ def create_tokens(username, password):
 
 def refresh_access_token(refresh_token):
     try:
-        print("refresh_access_token")
-        print("refresh_access_token")
         outstanding_refresh_token = OutstandingRefreshToken.objects.filter(token=str(refresh_token)).first()
-        print("outstanding_refresh_token")
-        print(outstanding_refresh_token)
-
         if outstanding_refresh_token:
             if BlacklistedRefreshToken.objects.filter(token=outstanding_refresh_token).exists() == False:
                 payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=['HS256'])

@@ -7,33 +7,22 @@ from .models import CustomUser
 from .serializers import UserSerializer
 from .models import Blog
 from .serializers import BlogSerializer
-from rest_framework.permissions import IsAuthenticated
-from .middleware import TokenAuthMiddleware
-
-
-class UserCreateView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
-
-class UserListView(generics.ListAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .jwt_auth import create_tokens, refresh_access_token, blacklist_refresh_token
 from django.utils.decorators import method_decorator
-from django.views import View
-from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.generics import ListCreateAPIView
 
+class UserListCreateView(ListCreateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
 @method_decorator(csrf_exempt, name='dispatch')
 class BlogListCreateAPIView(APIView):
-    # queryset = Blog.objects.all()
-    # serializer_class = BlogSerializer
-    # permission_classes = [IsAuthenticated]
-
 
     def get(self, request):
         try:
-            print("9"*100)
-            blogs = Blog.objects.filter(user=request.user)
+            blogs = Blog.objects.filter(user= CustomUser.objects.filter(id=request.user_id).first())
             serializer = BlogSerializer(blogs, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -41,18 +30,17 @@ class BlogListCreateAPIView(APIView):
         
     def post(self, request, *args, **kwargs):
  
-        # try:
-            request.data['user'] = CustomUser.objects.filter(id=request.user_id).first()
-            print(request.data)
-            # request.data['user'] = request.user_id
+        try:
+            user = CustomUser.objects.filter(id=request.user_id).first()
+            request.data['user'] = user.id
             serializer = BlogSerializer(data=request.data)
             print(serializer.is_valid()) 
             if serializer.is_valid():
                 serializer.save(user=request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        # except Exception as e:
-        #     return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
 
     def patch(self, request,pk):
@@ -82,22 +70,11 @@ class BlogListCreateAPIView(APIView):
             return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
 
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .jwt_auth import create_tokens, refresh_access_token, blacklist_refresh_token
-
 @api_view(['POST'])
 def login_view(request):
-    # Get username and password from the request data (you may use serializers for a more structured approach)
     username = request.data.get('username')
     password = request.data.get('password')
 
-    # Authenticate user
-    # user = authenticate(username=username, password=password)
-
-
-    # Create tokens if the user is authenticated
     tokens = create_tokens(username, password)
 
     if tokens:
@@ -108,13 +85,9 @@ def login_view(request):
 
 @api_view(['POST'])
 def generate_access_token_view(request):
-    # Get username and password from the request data (you may use serializers for a more structured approach)
     refresh_token = request.data.get('refresh')
-    print("refresh_token    " +refresh_token+"\n\n")
     if refresh_token:
-        # Create tokens if the user is authenticated
         tokens = refresh_access_token(refresh_token)
-
         if tokens:
             return Response(tokens, status=200)
         else:
@@ -125,7 +98,6 @@ def generate_access_token_view(request):
 @csrf_exempt
 @api_view(['POST'])
 def revoke_refresh_token_view(request):
-    # Get username and password from the request data (you may use serializers for a more structured approach)
     refresh_token = request.data.get('refresh')
     print("refresh_token    " +refresh_token+"\n\n")
     if refresh_token:
@@ -139,22 +111,6 @@ def revoke_refresh_token_view(request):
     else:
         return Response({'error': 'Invalid refresh token'}, status=401)
     
-@csrf_exempt
-@api_view(['POST'])
-def post(request, *args, **kwargs):
-            print(request.user)
-            print("sdfghjklkjhgffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-        # try:
-            request.data['user'] = CustomUser.objects.filter(id=request.user_id).first()
-            # request.data['user'] = request.user_id
-            serializer = BlogSerializer(data=request.data)
-            print(serializer.is_valid()) 
-            if serializer.is_valid():
-                serializer.save(user=request.user)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        # except Exception as e:
-        #     return Response({"detail": f"{e}"},status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -174,38 +130,3 @@ def post(request, *args, **kwargs):
 
 
 
-
-
-
-
-# class ObtainTokenPairView(TokenObtainPairView):
-#     def post(self, request, *args, **kwargs):
-#         print("Received credentials:", request.data.get('username'), request.data.get('password'))
-#         response = super().post(request, *args, **kwargs)
-#         if response.status_code != status.HTTP_200_OK:
-#             print("Login failed. Response:", response.data)
-#         return response
-
-# class TokenRefreshView(TokenRefreshView):
-#     pass
-# class CustomOutstandingTokenAdmin(OutstandingTokenAdmin):
-#     def has_delete_permission(self, *args, **kwargs):
-#         return True
-    
-
-
-# class UserTokenRevokeView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request, *args, **kwargs):
-#         refresh_token = request.data.get('refresh')
-#         if refresh_token:
-#             try:
-#                 token = RefreshToken(refresh_token)
-#                 token.blacklist()
-#                 return Response({'detail': 'Tokens revoked successfully.'}, status=status.HTTP_200_OK)
-        
-#             except Exception as e:
-#                 return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_400_BAD_REQUEST)
-#         else:
-#             return Response({'detail': 'Refresh token is required in the request body.'}, status=status.HTTP_400_BAD_REQUEST)

@@ -1,11 +1,10 @@
 from django.urls import path
-from .views import UserCreateView, UserListView
-from .views import (UserCreateView,login_view, generate_access_token_view,
-                    revoke_refresh_token_view, BlogListCreateAPIView)
+from .views import UserListCreateView, BlogListCreateAPIView
+from .views import (login_view, generate_access_token_view,
+                    revoke_refresh_token_view, )
 
 urlpatterns = [
-    path('register/', UserCreateView.as_view(), name='register'),
-    path('all/', UserListView.as_view(), name='all'),
+    path('register/', UserListCreateView.as_view(), name='register'),
 
     path('token/', login_view, name='token_obtain_pair'),
     path('token/refresh/', generate_access_token_view, name='token_refresh'),
