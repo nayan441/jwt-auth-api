@@ -114,7 +114,7 @@ Request Payload:
 
     {
     "title": "Updated Post Title",
-    "content": "Updated Post Content"
+    "description": "Updated Post Content"
     }
 
 Delete a blog post:
