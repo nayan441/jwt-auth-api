@@ -31,10 +31,11 @@ class BlogListCreateAPIView(APIView):
     def post(self, request, *args, **kwargs):
  
         try:
+
             user = CustomUser.objects.filter(id=request.user_id).first()
             request.data['user'] = user.id
+            request.user = user
             serializer = BlogSerializer(data=request.data)
-            print(serializer.is_valid()) 
             if serializer.is_valid():
                 serializer.save(user=request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -46,9 +47,11 @@ class BlogListCreateAPIView(APIView):
     def patch(self, request,pk):
         try:
             blog = Blog.objects.filter(id=int(pk)).first()
-            if blog.user != self.request.user:
+            user = CustomUser.objects.filter(id=request.user_id).first()
+            request.data['user'] = user.id
+            request.user = user
+            if blog.user != request.user:
                 return Response({"detail": "You don't have permission to update this blog"}, status=status.HTTP_403_FORBIDDEN)
-            request.data['user']= request.user.id
             serializer = BlogSerializer(blog, data=request.data, partial=True)
             if serializer.is_valid(raise_exception=True):
 
@@ -62,7 +65,10 @@ class BlogListCreateAPIView(APIView):
     def delete(self, request, pk):
         try:
             blog = Blog.objects.filter(id=int(pk)).first()
-            if blog.user != self.request.user:
+            user = CustomUser.objects.filter(id=request.user_id).first()
+            request.data['user'] = user.id
+            request.user = user
+            if blog.user != request.user:
                 return Response({"detail": "You don't have permission to update this blog"}, status=status.HTTP_403_FORBIDDEN)
             blog.delete()
             return Response({"detail": "Object got successfully deleted"},status=status.HTTP_204_NO_CONTENT)
@@ -99,7 +105,6 @@ def generate_access_token_view(request):
 @api_view(['POST'])
 def revoke_refresh_token_view(request):
     refresh_token = request.data.get('refresh')
-    print("refresh_token    " +refresh_token+"\n\n")
     if refresh_token:
         # Create tokens if the user is authenticated
         tokens = blacklist_refresh_token(refresh_token)
