@@ -1,6 +1,6 @@
 # Auth-Login through JWT
 
-This project is a Django-based REST API that provides registration, JWT authentication middleware, and CRUD operation APIs.
+This project is a Django-based REST API that provides registration, JWT authentication middleware, and CRUD  operation APIs.
 
 
 ## Setup
